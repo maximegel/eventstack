@@ -5,4 +5,13 @@
     <LangVersion>7.1</LangVersion>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Interactive.Async" Version="3.2.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EventStack.Common\EventStack.Common.csproj" />
+    <ProjectReference Include="..\EventStack.Domain\EventStack.Domain.csproj" />
+  </ItemGroup>
+
 </Project>

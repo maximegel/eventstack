@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 
 namespace EventStack.Domain
 {
@@ -31,39 +30,31 @@ namespace EventStack.Domain
     ///      </code>
     /// </example>
     /// <typeparam name="TId"></typeparam>
-    public abstract class Entity<TId> :
-        IEntity<TId>
+    public abstract class Entity<TId> : IEntity,
+        IEquatable<IEntity>
     {
-        protected Entity(TId id) => Id = id == null ? throw new ArgumentNullException(nameof(id)) : id;
+        private readonly string _id;
+
+        protected Entity(TId id) => _id = id == null ? throw new ArgumentNullException(nameof(id)) : _id;
 
         protected Entity() { }
 
-        /// <inheritdoc />
-        object IEntity.Id => Id;
+        string IEntity.Id => _id;
 
-        public TId Id { get; }
+        /// <inheritdoc />
+        public bool Equals(IEntity other) => other != null && ((IEntity) this).Id == other.Id;
 
         public static bool operator ==(Entity<TId> left, Entity<TId> right) => Equals(left, right);
 
         public static bool operator !=(Entity<TId> left, Entity<TId> right) => !(left == right);
 
+        public override bool Equals(object obj) =>
+            ReferenceEquals(this, obj) ||
+            !(obj is null) && GetType() == obj.GetType() && Equals(obj as IEntity);
 
-        public override bool Equals(object obj)
-        {
-            if (obj is null) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            return GetType() == obj.GetType() &&
-                   EqualityComparer<object>.Default.Equals((this as IEntity).Id, (obj as IEntity)?.Id);
-        }
+        public override int GetHashCode() =>
+            unchecked((13 * GetType().GetHashCode()) ^ ((IEntity) this).Id?.GetHashCode() ?? 0);
 
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return (13 * GetType().GetHashCode()) ^ (this as IEntity).Id?.GetHashCode() ?? 0;
-            }
-        }
-
-        public override string ToString() => $"{GetType()}#{Id}";
+        public override string ToString() => $"{GetType()}#{((IEntity) this).Id}";
     }
 }

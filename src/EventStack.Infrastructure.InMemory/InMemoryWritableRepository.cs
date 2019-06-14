@@ -1,17 +1,18 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using EventStack.Domain;
+using EventStack.Infrastructure.InMemory.Internal;
 
 namespace EventStack.Infrastructure.InMemory
 {
     public static class InMemoryWritableRepository
     {
-        public static InMemoryWritableRepository<TEntity> From<TEntity>(params TEntity[] entities)
+        public static IWritableRepository<TEntity> Empty<TEntity>()
             where TEntity : class, IEntity =>
-            new InMemoryWritableRepository<TEntity>(entities.ToDictionary(entity => entity.Id));
+            From<TEntity>();
 
-        public static InMemoryWritableRepository<TEntity> Empty<TEntity>()
+        public static IWritableRepository<TEntity> From<TEntity>(params TEntity[] entities)
             where TEntity : class, IEntity =>
-            new InMemoryWritableRepository<TEntity>(new Dictionary<object, TEntity>());
+            new InMemoryWritableRepository<TEntity>(entities.ToDictionary(entity => entity.Id))
+                .RequireNonNullArguments();
     }
 }

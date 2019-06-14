@@ -46,22 +46,12 @@ namespace EventStack.Domain
 
         public static bool operator !=(ValueObject left, ValueObject right) => !(left == right);
 
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj)) return false;
-            if (ReferenceEquals(this, obj)) return true;
-            return GetType() == obj.GetType() && Equals((ValueObject) obj);
-        }
+        public override bool Equals(object obj) =>
+            ReferenceEquals(this, obj) ||
+            !(obj is null) && GetType() == obj.GetType() && Equals(obj as ValueObject);
 
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return GetEqualityValues()
-                    .Append(GetType())
-                    .Aggregate(17, (current, obj) => current * 23 ^ (obj?.GetHashCode() ?? 0));
-            }
-        }
+        public override int GetHashCode() =>
+            unchecked(GetEqualityValues().Aggregate(17, (current, obj) => (current * 23) ^ (obj?.GetHashCode() ?? 0)));
 
         protected abstract IEnumerable<object> GetEqualityValues();
     }
