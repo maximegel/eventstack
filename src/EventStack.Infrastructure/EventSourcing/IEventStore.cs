@@ -1,11 +1,10 @@
-﻿using EventStack.Domain;
-
-namespace EventStack.Infrastructure.EventSourcing
+﻿namespace EventStack.Infrastructure.EventSourcing
 {
-    public interface IEventStore<TEvent> :
-        IWritableRepository<EventStream<TEvent>>,
-        IUnitOfWorkParticipant
+    public interface IEventStore<TEvent>
         where TEvent : class
     {
+        void AddOrUpdate(IEventStream<TEvent> stream);
+
+        IEventStream<TEvent> Stream(object id);
     }
 }

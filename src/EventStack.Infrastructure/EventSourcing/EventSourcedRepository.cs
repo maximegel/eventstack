@@ -1,59 +1,45 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
-using EventStack.Common;
 using EventStack.Domain;
-using EventStack.Infrastructure.EventSourcing.Aggregation;
+using EventStack.Domain.EventSourcing;
+using EventStack.Infrastructure.EventSourcing.Internal;
 using RailSharp;
 
 namespace EventStack.Infrastructure.EventSourcing
 {
-    public class EventSourcedRepository<TAggregate, TEvent> : IWritableRepository<TAggregate>,
-        IUnitOfWorkParticipant
-        where TAggregate : class, IAggregateRoot<TAggregate, TEvent>
-        where TEvent : class
+    public class EventSourcedRepository<TAggregate> : IWriteOnlyRepository<TAggregate>
+        where TAggregate : class, IAggregateRoot, IEventSource
     {
-        private readonly IEventStore<TEvent> _eventStore;
-        private readonly IEventsAggregator<TAggregate, TEvent> _aggregator;
-        private readonly List<Func<Task>> _unsavedOperations = new List<Func<Task>>();
+        private readonly IAggregateFactory<TAggregate> _aggregateFactory;
+        private readonly IEventStore<IDomainEvent> _eventStore;
 
         internal EventSourcedRepository(
-            IEventStore<TEvent> eventStore,
-            IEventsAggregator<TAggregate, TEvent> aggregator)
+            IEventStore<IDomainEvent> eventStore,
+            IAggregateFactory<TAggregate> aggregateFactory)
         {
             _eventStore = eventStore;
-            _aggregator = aggregator;
-        }
-
-        /// <inheritdoc />
-        public async Task SaveAsync(CancellationToken cancellationToken = default)
-        {
-            foreach (var operation in _unsavedOperations) await operation();
-            await _eventStore.SaveAsync(cancellationToken);
+            _aggregateFactory = aggregateFactory;
         }
 
         public void AddOrUpdate(TAggregate aggregate) =>
-            _unsavedOperations.Add(async () => await AddOrUpdateStreamAsync(aggregate));
+            aggregate.Commit(events => _eventStore.AddOrUpdate(_eventStore.Stream(aggregate.Id).Append(events)));
 
         public void Remove(TAggregate aggregate) =>
-            _unsavedOperations.Add(async () => await RemoveStreamAsync(aggregate));
+            aggregate.Commit(
+                events => _eventStore.AddOrUpdate(
+                    _eventStore.Stream(aggregate.Id).Append(new AggregateRemovedEvent())));
 
         public async Task<Option<TAggregate>> TryFindAsync(object id, CancellationToken cancellationToken = default) =>
-            await (await _eventStore.TryFindAsync(id, cancellationToken))
-                .MapAsync(async stream => await _aggregator.ExecuteAsync(stream, cancellationToken));
-
-        private async Task AddOrUpdateStreamAsync(TAggregate aggregate)
-        {
-            var stream = await GetOrCreateStreamAsync(aggregate);
-            stream.Append(aggregate.Commit());
-            _eventStore.AddOrUpdate(await GetOrCreateStreamAsync(aggregate));
-        }
-
-        private async Task<EventStream<TEvent>> GetOrCreateStreamAsync(TAggregate aggregate) =>
-            (await _eventStore.TryFindAsync(aggregate.Id)).Reduce(EventStream.Empty<TEvent>());
-
-        private async Task RemoveStreamAsync(TAggregate aggregate) =>
-            (await _eventStore.TryFindAsync(aggregate.Id)).Do(stream => _eventStore.Remove(stream));
+            await _eventStore.Stream(id)
+                .AggregateAsync(
+                    (Option<TAggregate>) Option.None,
+                    (aggregate, @event) =>
+                    {
+                        switch (@event)
+                        {
+                            case AggregateRemovedEvent _: return Option.None;
+                            default: return (TAggregate) aggregate.Reduce(_aggregateFactory.Create).Apply(@event);
+                        }
+                    });
     }
 }

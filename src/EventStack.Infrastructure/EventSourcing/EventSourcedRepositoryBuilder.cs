@@ -1,36 +1,28 @@
-﻿using EventStack.Common.Construction;
-using EventStack.Domain;
-using EventStack.Infrastructure.EventSourcing.Aggregation;
+﻿using EventStack.Domain;
+using EventStack.Domain.EventSourcing;
 
 namespace EventStack.Infrastructure.EventSourcing
 {
-    public class EventSourcedRepositoryBuilder<TAggregate, TEvent> :
-        IBuildable<EventSourcedRepository<TAggregate, TEvent>>
-        where TAggregate : class, IAggregateRoot<TAggregate, TEvent>
-        where TEvent : class
+    public class EventSourcedRepositoryBuilder<TAggregate>
+        where TAggregate : class, IAggregateRoot, IEventSource
     {
-        private readonly IEventStore<TEvent> _eventStore;
-        private IBuildable<IEventsAggregator<TAggregate, TEvent>> _aggregator;
+        private readonly IEventStore<IDomainEvent> _eventStore;
 
-        private EventSourcedRepositoryBuilder(IEventStore<TEvent> eventStore) => _eventStore = eventStore;
+        private IAggregateFactory<TAggregate> _aggregateFactory =
+            AggregateFactories.NonPublicParamlessCtor<TAggregate>();
 
-        public EventSourcedRepository<TAggregate, TEvent> Build() =>
-            new EventSourcedRepository<TAggregate, TEvent>(_eventStore, _aggregator.Build());
+        private EventSourcedRepositoryBuilder(IEventStore<IDomainEvent> eventStore) => _eventStore = eventStore;
 
-        public static EventSourcedRepositoryBuilder<TAggregate, TEvent> For(IEventStore<TEvent> eventStore) =>
-            new EventSourcedRepositoryBuilder<TAggregate, TEvent>(eventStore);
+        public static EventSourcedRepositoryBuilder<TAggregate> For(IEventStore<IDomainEvent> eventStore) =>
+            new EventSourcedRepositoryBuilder<TAggregate>(eventStore);
 
-        public EventSourcedRepositoryBuilder<TAggregate, TEvent> UseAggregator(
-            IEventsAggregator<TAggregate, TEvent> aggregator)
+        public EventSourcedRepository<TAggregate> Build() =>
+            new EventSourcedRepository<TAggregate>(_eventStore, _aggregateFactory);
+
+        public EventSourcedRepositoryBuilder<TAggregate> UseAggregateFactory(
+            IAggregateFactory<TAggregate> aggregateFactory)
         {
-            _aggregator = Builder.For(() => aggregator);
-            return this;
-        }
-
-        public EventSourcedRepositoryBuilder<TAggregate, TEvent> UseAggregator(
-            BuildingSteps<IEventsAggregator<TAggregate, TEvent>> buildingSteps)
-        {
-            _aggregator = buildingSteps();
+            _aggregateFactory = aggregateFactory;
             return this;
         }
     }

@@ -10,6 +10,6 @@
         /// <summary>
         ///     Identifier that make the entity unique.
         /// </summary>
-        string Id { get; }
+        object Id { get; }
     }
 }

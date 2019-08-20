@@ -33,13 +33,13 @@ namespace EventStack.Domain
     public abstract class Entity<TId> : IEntity,
         IEquatable<IEntity>
     {
-        private readonly string _id;
-
-        protected Entity(TId id) => _id = id == null ? throw new ArgumentNullException(nameof(id)) : _id;
-
         protected Entity() { }
 
-        string IEntity.Id => _id;
+        protected Entity(TId id) => Id = id == null ? throw new ArgumentNullException(nameof(id)) : id;
+
+        public TId Id { get; protected set; }
+
+        object IEntity.Id => Id;
 
         /// <inheritdoc />
         public bool Equals(IEntity other) => other != null && ((IEntity) this).Id == other.Id;

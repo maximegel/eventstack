@@ -11,7 +11,7 @@
     /// <remarks>
     ///     The root is the only member of the aggregate that outside objects are allowed to hold or references to.
     /// </remarks>
-    public interface IAggregateRoot : IVersionedEntity
+    public interface IAggregateRoot : IEntity
     {
     }
 }
