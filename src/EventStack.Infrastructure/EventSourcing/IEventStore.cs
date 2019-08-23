@@ -1,10 +1,24 @@
-﻿namespace EventStack.Infrastructure.EventSourcing
+﻿using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using RailSharp;
+
+namespace EventStack.Infrastructure.EventSourcing
 {
     public interface IEventStore<TEvent>
         where TEvent : class
     {
-        void AddOrUpdate(IEventStream<TEvent> stream);
+        Task AppendToStreamAsync(
+            string streamId,
+            IEnumerable<TEvent> events,
+            Option<long> expectedVersion,
+            CancellationToken cancellationToken = default);
 
-        IEventStream<TEvent> Stream(object id);
+        Task DeleteStreamAsync(
+            string streamId,
+            Option<long> expectedVersion,
+            CancellationToken cancellationToken = default);
+
+        IAsyncEnumerable<TEvent> ReadStream(string streamId);
     }
 }

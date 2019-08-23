@@ -5,23 +5,40 @@ using RailSharp;
 
 namespace EventStack.Infrastructure.InMemory
 {
-    public class InMemoryWriteOnlyRepository<TAggregate> :
-        IWriteOnlyRepository<TAggregate>
-        where TAggregate : class, IAggregateRoot
+    public class InMemoryWriteOnlyRepository<TAggregate, TId> :
+        IWriteOnlyRepository<TAggregate, TId>
+        where TAggregate : class, IAggregateRoot<TId>
     {
-        private readonly object _collectionKey = typeof(TAggregate);
+        private readonly string _collectionKey;
         private readonly InMemoryStorage _storage;
 
-        public InMemoryWriteOnlyRepository(InMemoryStorage storage) => _storage = storage;
+        private InMemoryWriteOnlyRepository(string collectionKey, InMemoryStorage storage)
+        {
+            _collectionKey = collectionKey;
+            _storage = storage;
+        }
 
         /// <inheritdoc />
-        public void AddOrUpdate(TAggregate aggregate) => _storage.AddOrUpdate(_collectionKey, aggregate);
+        public Task DeleteAsync(TAggregate aggregate, CancellationToken cancellationToken = default)
+        {
+            _storage.Remove(_collectionKey, aggregate);
+            _storage.SaveChanges();
+            return Task.CompletedTask;
+        }
 
         /// <inheritdoc />
-        public void Remove(TAggregate aggregate) => _storage.Remove(_collectionKey, aggregate);
+        public Task<Option<TAggregate>> FindAsync(TId id, CancellationToken cancellationToken = default) =>
+            Task.FromResult(_storage.Find<TAggregate, TId>(_collectionKey, id));
 
         /// <inheritdoc />
-        public Task<Option<TAggregate>> TryFindAsync(object id, CancellationToken cancellationToken = default) =>
-            Task.FromResult(_storage.TryFind<TAggregate>(_collectionKey, id));
+        public Task SaveAsync(TAggregate aggregate, CancellationToken cancellationToken = default)
+        {
+            _storage.AddOrUpdate(_collectionKey, aggregate);
+            _storage.SaveChanges();
+            return Task.CompletedTask;
+        }
+
+        public static IWriteOnlyRepository<TAggregate, TId> Create(string collectionKey, InMemoryStorage storage) =>
+            new InMemoryWriteOnlyRepository<TAggregate, TId>(collectionKey, storage).UseGuardClauses();
     }
 }

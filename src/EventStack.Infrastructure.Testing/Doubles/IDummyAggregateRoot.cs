@@ -2,7 +2,7 @@
 
 namespace EventStack.Infrastructure.Testing.Doubles
 {
-    public interface IDummyAggregateRoot : IAggregateRoot
+    public interface IDummyAggregateRoot : IAggregateRoot<int>
     {
         string Foo { get; }
 

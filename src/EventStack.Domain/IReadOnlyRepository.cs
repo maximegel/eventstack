@@ -4,9 +4,9 @@ using RailSharp;
 
 namespace EventStack.Domain
 {
-    public interface IReadOnlyRepository<TEntity>
-        where TEntity : class, IEntity
+    public interface IReadOnlyRepository<TEntity, in TId>
+        where TEntity : class, IEntity<TId>
     {
-        Task<Option<TEntity>> TryFindAsync(object id, CancellationToken cancellationToken = default);
+        Task<Option<TEntity>> FindAsync(TId id, CancellationToken cancellationToken = default);
     }
 }

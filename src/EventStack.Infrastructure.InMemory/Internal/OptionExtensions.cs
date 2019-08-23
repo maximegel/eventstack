@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using RailSharp;
 using RailSharp.Internal.Option;
 
-namespace EventStack.Infrastructure.EventSourcing.Internal
+namespace EventStack.Infrastructure.InMemory.Internal
 {
     internal static class OptionExtensions
     {
@@ -24,5 +24,8 @@ namespace EventStack.Infrastructure.EventSourcing.Internal
             this Option<T> option,
             Func<T, Task<TDestination>> mapper) =>
             option is Some<T> some ? Option.Some(await mapper(some)) : Option.None;
+
+        // TODO(maximegelinas): Move to RailSharp.
+        public static Option<T> Tap<T>(this Option<T> option, Action<T> action) => option.Do(action);
     }
 }

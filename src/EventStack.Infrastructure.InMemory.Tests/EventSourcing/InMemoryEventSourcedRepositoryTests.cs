@@ -11,9 +11,5 @@ namespace EventStack.Infrastructure.InMemory.Tests.EventSourcing
             : base(fixture)
         {
         }
-
-        /// <inheritdoc />
-        protected override DummyEventSourcedAggregateRoot CreateAggregate(int id) =>
-            new DummyEventSourcedAggregateRoot(id);
     }
 }

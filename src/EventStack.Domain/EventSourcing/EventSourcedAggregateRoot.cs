@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
+using RailSharp;
 
 namespace EventStack.Domain.EventSourcing
 {
     public abstract class EventSourcedAggregateRoot<TId> : Entity<TId>,
-        IAggregateRoot,
-        IEventSource,
-        IVersioned
+        IAggregateRoot<TId>,
+        IEventSource
     {
-        private readonly ICollection<IDomainEvent> _uncommitedEvents = new List<IDomainEvent>();
+        private readonly ICollection<(IDomainEvent evnt, long version)> _uncommitedEvents =
+            new List<(IDomainEvent evnt, long version)>();
+
+        private long _version;
 
         protected EventSourcedAggregateRoot() { }
 
@@ -19,31 +21,27 @@ namespace EventStack.Domain.EventSourcing
         }
 
         /// <inheritdoc />
-        IEventSource IEventSource.Apply(IDomainEvent @event)
+        IEventSource IEventSource.Apply(EventDescriptor @event)
         {
-            Apply(@event);
-            Version++;
+            Apply(@event.Data);
+            _version = @event.Version;
             return this;
         }
 
         /// <inheritdoc />
-        IEventSource IEventSource.Commit(Action<IEnumerable<IDomainEvent>> handler)
+        IReadOnlyCollection<EventDescriptor> IEventSource.Commit()
         {
-            handler(_uncommitedEvents.ToList());
+            var events = _uncommitedEvents.Select(pair => new EventDescriptor(pair.version, pair.evnt)).ToList();
             _uncommitedEvents.Clear();
-            return this;
+            return events;
         }
-
-        /// <inheritdoc />
-        public long Version { get; private set; }
 
         protected abstract void Apply(IDomainEvent @event);
 
-        protected void Raise(IDomainEvent @event)
+        protected void Emit(IDomainEvent @event)
         {
             Apply(@event);
-            _uncommitedEvents.Add(@event);
-            Version++;
+            _uncommitedEvents.Add((@event, ++_version));
         }
     }
 }

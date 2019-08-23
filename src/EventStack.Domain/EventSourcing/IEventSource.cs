@@ -1,12 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace EventStack.Domain.EventSourcing
 {
-    public interface IEventSource : IEntity
+    public interface IEventSource
     {
-        IEventSource Apply(IDomainEvent @event);
+        IEventSource Apply(EventDescriptor @event);
 
-        IEventSource Commit(Action<IEnumerable<IDomainEvent>> handler);
+        IReadOnlyCollection<EventDescriptor> Commit();
     }
 }

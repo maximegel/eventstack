@@ -8,7 +8,7 @@ namespace EventStack.Infrastructure.Testing.EventSourcing.Doubles
         IDummyAggregateRoot
     {
         public DummyEventSourcedAggregateRoot(int id)
-            : base(id) => Raise(new DummyCreatedEvent(id));
+            : base(id) => Emit(new DummyCreatedEvent(id));
 
         private DummyEventSourcedAggregateRoot() { }
 
@@ -16,7 +16,7 @@ namespace EventStack.Infrastructure.Testing.EventSourcing.Doubles
         public string Foo { get; private set; }
 
         /// <inheritdoc />
-        public void UpdateFoo(string value) => Raise(new DummyFooUpdatedEvent(value));
+        public void UpdateFoo(string value) => Emit(new DummyFooUpdatedEvent(value));
 
         /// <inheritdoc />
         protected override void Apply(IDomainEvent @event)

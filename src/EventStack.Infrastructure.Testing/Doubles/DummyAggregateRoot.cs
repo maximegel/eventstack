@@ -2,7 +2,8 @@
 
 namespace EventStack.Infrastructure.Testing.Doubles
 {
-    public class DummyAggregateRoot : Entity<int>, IDummyAggregateRoot
+    public class DummyAggregateRoot : Entity<int>,
+        IDummyAggregateRoot
     {
         public DummyAggregateRoot(int id)
             : base(id)

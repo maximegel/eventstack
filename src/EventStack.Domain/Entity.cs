@@ -2,7 +2,7 @@
 
 namespace EventStack.Domain
 {
-    /// <inheritdoc cref="IEntity" />
+    /// <inheritdoc cref="IEntity{TId}" />
     /// <summary>
     ///     Represents an object that is not fundamentally defined by its properties, but rather by its thread of continuity
     ///     and its identity.
@@ -30,8 +30,7 @@ namespace EventStack.Domain
     ///      </code>
     /// </example>
     /// <typeparam name="TId"></typeparam>
-    public abstract class Entity<TId> : IEntity,
-        IEquatable<IEntity>
+    public abstract class Entity<TId> : IEntity<TId>
     {
         protected Entity() { }
 
@@ -39,10 +38,8 @@ namespace EventStack.Domain
 
         public TId Id { get; protected set; }
 
-        object IEntity.Id => Id;
-
         /// <inheritdoc />
-        public bool Equals(IEntity other) => other != null && ((IEntity) this).Id == other.Id;
+        public bool Equals(IEntity<TId> other) => other != null && ((IEntity<TId>) this).Id.Equals(other.Id);
 
         public static bool operator ==(Entity<TId> left, Entity<TId> right) => Equals(left, right);
 
@@ -50,11 +47,11 @@ namespace EventStack.Domain
 
         public override bool Equals(object obj) =>
             ReferenceEquals(this, obj) ||
-            !(obj is null) && GetType() == obj.GetType() && Equals(obj as IEntity);
+            !(obj is null) && GetType() == obj.GetType() && Equals(obj as IEntity<TId>);
 
         public override int GetHashCode() =>
-            unchecked((13 * GetType().GetHashCode()) ^ ((IEntity) this).Id?.GetHashCode() ?? 0);
+            unchecked((13 * GetType().GetHashCode()) ^ ((IEntity<TId>) this).Id?.GetHashCode() ?? 0);
 
-        public override string ToString() => $"{GetType()}#{((IEntity) this).Id}";
+        public override string ToString() => $"{GetType()}#{Id}";
     }
 }

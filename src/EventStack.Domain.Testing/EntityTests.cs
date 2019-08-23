@@ -5,7 +5,7 @@ namespace EventStack.Domain.Testing
 {
     public abstract class EntityTests
     {
-        protected abstract IEntity CreateEntity(string id);
+        protected abstract IEntity<string> CreateEntity(string id);
 
         [Fact]
         public void Equals_WithEquivalent_ReturnsTrue()

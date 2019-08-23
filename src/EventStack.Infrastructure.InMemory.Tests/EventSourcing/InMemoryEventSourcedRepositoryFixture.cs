@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using EventStack.Domain;
-using EventStack.Domain.EventSourcing;
 using EventStack.Infrastructure.EventSourcing;
 using EventStack.Infrastructure.InMemory.EventSourcing;
 using EventStack.Infrastructure.Testing;
@@ -12,24 +12,21 @@ namespace EventStack.Infrastructure.InMemory.Tests.EventSourcing
     public class InMemoryEventSourcedRepositoryFixture : WriteOnlyRepositoryFixture<DummyEventSourcedAggregateRoot>
     {
         public InMemoryEventSourcedRepositoryFixture()
+            : base(RepositoryFactory(), AggregateFactory, Seeder)
         {
-            var storage = InMemoryStorage.Empty;
-            var eventStore = new InMemoryEventStore<IDomainEvent>(storage);
-            Repository = EventSourcedRepositoryBuilder<DummyEventSourcedAggregateRoot>.For(eventStore).Build();
-            UnitOfWork = new InMemoryUnitOfWork(storage);
         }
 
-        /// <inheritdoc />
-        public override IWriteOnlyRepository<DummyEventSourcedAggregateRoot> Repository { get; }
+        private static DummyEventSourcedAggregateRoot AggregateFactory(int id) =>
+            new DummyEventSourcedAggregateRoot(id);
 
-        /// <inheritdoc />
-        public override IUnitOfWork UnitOfWork { get; }
+        private static IWriteOnlyRepository<DummyEventSourcedAggregateRoot, int> RepositoryFactory() =>
+            EventSourcedRepositoryBuilder.For<DummyEventSourcedAggregateRoot, int>()
+                .UseEventStore(new InMemoryEventStore(InMemoryStorage.Empty))
+                .Build();
 
-        /// <inheritdoc />
-        public override void Seed(IEnumerable<DummyEventSourcedAggregateRoot> aggregates)
-        {
-            Repository.AddOrUpdateRange(aggregates);
-            UnitOfWork.CommitAsync().Wait();
-        }
+        private static void Seeder(
+            IWriteOnlyRepository<DummyEventSourcedAggregateRoot, int> repository,
+            IEnumerable<DummyEventSourcedAggregateRoot> aggregates) =>
+            Task.WhenAll(aggregates.Select(aggregate => repository.SaveAsync(aggregate))).Wait();
     }
 }

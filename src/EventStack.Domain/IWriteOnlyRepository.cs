@@ -4,13 +4,13 @@ using RailSharp;
 
 namespace EventStack.Domain
 {
-    public interface IWriteOnlyRepository<TAggregate>
-        where TAggregate : class, IAggregateRoot
+    public interface IWriteOnlyRepository<TAggregate, in TId>
+        where TAggregate : class, IAggregateRoot<TId>
     {
-        Task<Option<TAggregate>> TryFindAsync(object id, CancellationToken cancellationToken = default);
+        Task DeleteAsync(TAggregate aggregate, CancellationToken cancellationToken = default);
 
-        void AddOrUpdate(TAggregate aggregate);
+        Task<Option<TAggregate>> FindAsync(TId id, CancellationToken cancellationToken = default);
 
-        void Remove(TAggregate aggregate);
+        Task SaveAsync(TAggregate aggregate, CancellationToken cancellationToken = default);
     }
 }

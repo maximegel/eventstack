@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+using System;
+using System.Threading.Tasks;
 using EventStack.Domain;
 using EventStack.Infrastructure.Testing.Doubles;
 using FluentAssertions;
@@ -13,105 +14,83 @@ namespace EventStack.Infrastructure.Testing
     {
         protected WriteOnlyRepositoryTests(TFixture fixture)
         {
-            fixture.Seed(Seed);
             Repository = fixture.Repository;
-            UnitOfWork = fixture.UnitOfWork;
+            CreateAggregate = fixture.CreateAggregate;
         }
 
-        private IEnumerable<TAggregate> Seed => new[]
-        {
-            // XXX: Id=1 is updated by a test bellow.
-            CreateAggregate(1),
-            // XXX: Id=2 is added by a test bellow.
-            // XXX: Id=3 could be added by a test bellow.
-            // XXX: Id=4 is removed by a test bellow.
-            CreateAggregate(4),
-            // XXX: Id=5 could be removed by a test bellow.
-            CreateAggregate(5),
-            CreateAggregate(6)
-            // XXX: Id=7 should not exist.
-        };
+        protected Func<int, TAggregate> CreateAggregate { get; }
 
-        protected IUnitOfWork UnitOfWork { get; }
-
-        protected IWriteOnlyRepository<TAggregate> Repository { get; }
-
-        protected abstract TAggregate CreateAggregate(int id);
+        protected IWriteOnlyRepository<TAggregate, int> Repository { get; }
 
         [Fact]
-        public void AddOrUpdate_WhenCommittingWithExisting_UpdatesExisting()
-        {
-            var toUpdate = CreateAggregate(1);
-            toUpdate.UpdateFoo("Bar");
-
-            Repository.AddOrUpdate(toUpdate);
-            UnitOfWork.CommitAsync().Wait();
-            var stored = Repository.TryFindAsync(1).Result.Reduce(() => null);
-
-            stored?.Id.Should().Be(1);
-            stored?.Foo.Should().Be("Bar");
-        }
-
-        [Fact]
-        public void AddOrUpdate_WhenCommittingWithUnexisting_AddsNew()
-        {
-            var toAdd = CreateAggregate(2);
-
-            Repository.AddOrUpdate(toAdd);
-            var stored = Repository.TryFindAsync(2).Result.Reduce(() => null);
-            UnitOfWork.CommitAsync().Wait();
-
-            stored?.Id.Should().Be(2);
-        }
-
-        [Fact]
-        public void AddOrUpdate_WithoutCommitting_DoesNothing()
-        {
-            var toAddOrUpdate = CreateAggregate(3);
-
-            Repository.AddOrUpdate(toAddOrUpdate);
-            var stored = Repository.TryFindAsync(3).Result.Map(_ => true).Reduce(false);
-
-            stored.Should().BeFalse();
-        }
-
-        [Fact]
-        public void Remove_WhenCommittingWithExisting_RemovesExisting()
+        public async Task DeleteAsync_WithExisting_DeletesExisting()
         {
             var toRemove = CreateAggregate(4);
 
-            Repository.Remove(toRemove);
-            UnitOfWork.CommitAsync().Wait();
-            var stored = Repository.TryFindAsync(4).Result.Map(_ => true).Reduce(false);
+            var foundBefore = (await Repository.FindAsync(4)).Map(_ => true).Reduce(false);
+            await Repository.DeleteAsync(toRemove);
+            var foundAfter = (await Repository.FindAsync(4)).Map(_ => true).Reduce(false);
 
-            stored.Should().BeFalse();
+            foundBefore.Should().BeTrue();
+            foundAfter.Should().BeFalse();
         }
 
         [Fact]
-        public void Remove_WithoutCommitting_DoesNothing()
+        public async Task DeleteAsync_WithUnexisting_DoesNothing()
         {
-            var toRemove = CreateAggregate(5);
+            var toRemove = CreateAggregate(8);
 
-            Repository.Remove(toRemove);
-            var stored = Repository.TryFindAsync(5).Result.Map(_ => true).Reduce(false);
+            var foundBefore = (await Repository.FindAsync(8)).Map(_ => true).Reduce(false);
+            await Repository.DeleteAsync(toRemove);
+            var foundAfter = (await Repository.FindAsync(8)).Map(_ => true).Reduce(false);
 
-            stored.Should().BeTrue();
+            foundBefore.Should().BeFalse();
+            foundAfter.Should().BeFalse();
         }
 
         [Fact]
-        public void TryFindAsync_WithExistingId_ReturnsEntity()
+        public async Task FindAsync_WithExistingId_ReturnsSome()
         {
-            var stored = Repository.TryFindAsync(6).Result.Reduce(() => null);
+            var found = (await Repository.FindAsync(6)).Reduce(() => null);
 
-            stored.Id.Should().Be(6);
+            found?.Id.Should().Be(6);
         }
 
         [Fact]
-        public void TryFindAsync_WithUnexistingId_ReturnsNone()
+        public async Task FindAsync_WithUnexistingId_ReturnsNone()
         {
-            var stored = Repository.TryFindAsync(7).Result.Map(_ => true).Reduce(false);
+            var found = (await Repository.FindAsync(7)).Map(_ => true).Reduce(false);
 
-            stored.Should().BeFalse();
+            found.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task SaveAsync_WithExisting_UpdatesExisting()
+        {
+            var toUpdate = (await Repository.FindAsync(1)).Reduce(() => null);
+
+            toUpdate?.Id.Should().Be(1);
+            toUpdate?.Foo.Should().BeNullOrEmpty();
+
+            toUpdate?.UpdateFoo("Bar");
+            await Repository.SaveAsync(toUpdate);
+            var foundAfter = (await Repository.FindAsync(1)).Reduce(() => null);
+
+            foundAfter?.Id.Should().Be(1);
+            foundAfter?.Foo.Should().Be("Bar");
+        }
+
+        [Fact]
+        public async Task SaveAsync_WithUnexisting_AddsNew()
+        {
+            var toAdd = CreateAggregate(2);
+
+            var foundBefore = (await Repository.FindAsync(2)).Map(_ => true).Reduce(false);
+            await Repository.SaveAsync(toAdd);
+            var foundAfter = Repository.FindAsync(2).Result.Reduce(() => null);
+
+            foundBefore.Should().BeFalse();
+            foundAfter?.Id.Should().Be(2);
         }
     }
 }

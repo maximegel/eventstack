@@ -3,27 +3,10 @@ using EventStack.Domain.EventSourcing;
 
 namespace EventStack.Infrastructure.EventSourcing
 {
-    public class EventSourcedRepositoryBuilder<TAggregate>
-        where TAggregate : class, IAggregateRoot, IEventSource
+    public static class EventSourcedRepositoryBuilder
     {
-        private readonly IEventStore<IDomainEvent> _eventStore;
-
-        private IAggregateFactory<TAggregate> _aggregateFactory =
-            AggregateFactories.NonPublicParamlessCtor<TAggregate>();
-
-        private EventSourcedRepositoryBuilder(IEventStore<IDomainEvent> eventStore) => _eventStore = eventStore;
-
-        public static EventSourcedRepositoryBuilder<TAggregate> For(IEventStore<IDomainEvent> eventStore) =>
-            new EventSourcedRepositoryBuilder<TAggregate>(eventStore);
-
-        public EventSourcedRepository<TAggregate> Build() =>
-            new EventSourcedRepository<TAggregate>(_eventStore, _aggregateFactory);
-
-        public EventSourcedRepositoryBuilder<TAggregate> UseAggregateFactory(
-            IAggregateFactory<TAggregate> aggregateFactory)
-        {
-            _aggregateFactory = aggregateFactory;
-            return this;
-        }
+        public static EventSourcedRepositoryBuilder<TAggregate, TId>.IInitialized For<TAggregate, TId>()
+            where TAggregate : class, IAggregateRoot<TId>, IEventSource =>
+            EventSourcedRepositoryBuilder<TAggregate, TId>.Initialize();
     }
 }

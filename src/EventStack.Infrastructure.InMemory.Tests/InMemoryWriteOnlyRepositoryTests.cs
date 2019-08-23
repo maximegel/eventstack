@@ -11,8 +11,5 @@ namespace EventStack.Infrastructure.InMemory.Tests
             : base(new InMemoryWriteOnlyRepositoryFixture())
         {
         }
-
-        /// <inheritdoc />
-        protected override DummyAggregateRoot CreateAggregate(int id) => new DummyAggregateRoot(id);
     }
 }

@@ -1,33 +1,51 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using EventStack.Domain;
+using EventStack.Infrastructure.InMemory.Internal;
 using RailSharp;
 
 namespace EventStack.Infrastructure.InMemory
 {
     public class InMemoryStorage
     {
-        private readonly List<Action<IDictionary<(object, object), IEntity>>> _changes =
-            new List<Action<IDictionary<(object, object), IEntity>>>();
+        private readonly List<Action<IDictionary<string, ImmutableList<IEntity>>>> _changes =
+            new List<Action<IDictionary<string, ImmutableList<IEntity>>>>();
 
-        private readonly IDictionary<(object collectionKey, object entityId), IEntity> _data =
-            new ConcurrentDictionary<(object collectionKey, object entityId), IEntity>();
+        private readonly IDictionary<string, ImmutableList<IEntity>> _data =
+            new ConcurrentDictionary<string, ImmutableList<IEntity>>();
 
         public static InMemoryStorage Empty => new InMemoryStorage();
 
-        public void AddOrUpdate(object collectionKey, IEntity entity) =>
-            _changes.Add(data => data[(collectionKey, entity.Id)] = entity);
+        public void AddOrUpdate(string collectionKey, IEntity entity) =>
+            _changes.Add(
+                data => data[collectionKey] = List(data, collectionKey)
+                    .Select((e, index) => (e, index))
+                    .TryFirst(pair => pair.e.Equals(entity))
+                    .Map(pair => pair.index)
+                    .Map(index => List(data, collectionKey).SetItem(index, entity))
+                    .Reduce(List(data, collectionKey).Add(entity)));
 
-        public void AddOrUpdateRange(object collectionKey, IEnumerable<IEntity> entities) =>
+        public void AddOrUpdateRange(string collectionKey, IEnumerable<IEntity> entities) =>
             entities.ToList().ForEach(entity => AddOrUpdate(collectionKey, entity));
 
-        public IEnumerable<IEntity> List(object collectionKey) =>
-            _data.Where(pair => pair.Key.collectionKey == collectionKey).Select(pair => pair.Value);
+        public Option<TEntity> Find<TEntity, TId>(string collectionKey, TId id)
+            where TEntity : IEntity<TId> =>
+            _data.TryGetValue(collectionKey)
+                .Map(entities => entities.OfType<TEntity>())
+                .FlatMap(entities => entities.TryFirst(entity => entity.Id.Equals(id)));
 
-        public void Remove(object collectionKey, IEntity entity) =>
-            _changes.Add(data => data.Remove((collectionKey, entity.Id)));
+        public IEnumerable<TEntity> List<TEntity, TId>(string collectionKey)
+            where TEntity : IEntity<TId> =>
+            List(_data, collectionKey).Select(entity => (TEntity) entity);
+
+        public void Remove(string collectionKey, IEntity entity) =>
+            _changes.Add(data => data[collectionKey] = List(data, collectionKey).RemoveAll(e => e.Equals(entity)));
+
+        public void RemoveRange(string collectionKey, IEnumerable<IEntity> entities) =>
+            entities.ToList().ForEach(entity => Remove(collectionKey, entity));
 
         public void SaveChanges()
         {
@@ -35,7 +53,7 @@ namespace EventStack.Infrastructure.InMemory
             {
                 // We try to execute all pending actions on a copy of the current storage before running them on the real storage
                 // to make sure everything will work properly without error. This ensures that the transaction will be atomic. 
-                var dataCopy = new Dictionary<(object, object), IEntity>(_data);
+                var dataCopy = new Dictionary<string, ImmutableList<IEntity>>(_data);
                 _changes.ForEach(action => action(dataCopy));
 
                 _changes.ForEach(action => action(_data));
@@ -43,10 +61,9 @@ namespace EventStack.Infrastructure.InMemory
             }
         }
 
-        public Option<TEntity> TryFind<TEntity>(object collectionKey, object id) =>
-            TryFind(collectionKey, id).Map(entity => (TEntity) entity);
-
-        public Option<IEntity> TryFind(object collectionKey, object id) =>
-            _data.TryGetValue((collectionKey, id));
+        private static ImmutableList<IEntity> List(
+            IDictionary<string, ImmutableList<IEntity>> data,
+            string collectionKey) =>
+            data.TryGetValue(collectionKey).Reduce(ImmutableList<IEntity>.Empty);
     }
 }
